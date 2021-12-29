@@ -1,0 +1,260 @@
+---
+title: "Práctica 2: Limpieza y análisis de datos"
+author: "Diego Álvarez Padrón y Kevin Mateo García"
+output: 
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_depth: 2
+    df_print: paged
+---
+
+******
+# Lectura del fichero y preparación de los datos
+******
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library("caret")
+
+fifa <- read.csv("fifa.csv", stringsAsFactors=T, header=T)
+fifa$Name <- as.character(fifa$Name)
+head(fifa)
+tail(fifa)
+```
+
+******
+## Preparación de los datos
+******
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+fifa$Weight <- as.numeric(sub(" kg", "", fifa$Weight))
+fifa$Height <- as.numeric(sub(" cm", "", fifa$Height))
+str(fifa$Height)
+```
+
+******
+## Clasificación de jugadores
+******
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+fifa$clasificacion[fifa$Rating <= 99 & fifa$Rating >= 90] <- "Excelente"
+fifa$clasificacion[fifa$Rating <= 89 & fifa$Rating >= 80] <- "Muy bueno"
+fifa$clasificacion[fifa$Rating <= 79 & fifa$Rating >= 70] <- "Bueno"
+fifa$clasificacion[fifa$Rating <= 69 & fifa$Rating >= 50] <- "Regular"
+fifa$clasificacion[fifa$Rating <= 49 & fifa$Rating >= 40] <- "Malo"
+fifa$clasificacion[fifa$Rating <= 39 & fifa$Rating >= 0] <- "Muy malo"
+
+fifa$clasificacion <- as.factor(fifa$clasificacion)
+str(levels(fifa$clasificacion))
+str(fifa)
+```
+
+******
+# Estadística descriptiva y visualización
+******
+******
+## Análisis descriptivo
+******
+A continuación haremos un análisis descriptivo del dataset.
+En primer lugar, observaremos un resumen de las variables contenidas en él, así como el número de observaciones y las distintas variables que tenemos. 
+
+Buscaremos también el número de clubs distintos que hay en estudio y también el número de distintas nacionalidades. 
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+summary(fifa)
+nrow(fifa)
+ncol(fifa)
+length(unique(fifa$Club))
+length(unique(fifa$Nationality))
+```
+
+Vemos entonces que tenemos un total de 17588 observaciones, con 54 variables.
+Además, vemos que tenemos en estudio un total de 634 clubs distintos y 160 nacionalidades diferentes.
+
+******
+## Valores ausentes
+******
+
+Como veíamos antes, las únicas variables que tenían valores ausentes además de 'National_Position' y 'National_Kit' (los cuales no eliminaremos ya que no son verdaderos missings, sino que simplemente indican que el jugador no ha jugado nunca con el equipo nacional), son las variables 'Club_Kit' y 'Contract_Expiry' las cuáles solo incluyen 1 NA cada una y por tanto la pérdida no será un problema mayor.
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+fifaNet <- fifa[rowSums(is.na(select(fifa, -"National_Position", -"National_Kit"))) == 0,]
+head(fifaNet)
+tail(fifaNet)
+nrow(fifaNet)
+nrow(fifa)
+summary(fifaNet)
+```
+
+******
+## Visualización
+******
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+fifaNet$portero <- as.factor(ifelse(fifaNet$Club_Position == "GK", "Portero", "noPortero"))
+
+ggplot(data = fifaNet, aes(x = portero, y = Weight, fill=portero)) + geom_boxplot() + theme(legend.position="right")
+ggplot(data = fifaNet, aes(x = Preffered_Foot, y = Weight, fill=Preffered_Foot)) + geom_boxplot() + theme(legend.position="right")
+ggplot(data = fifaNet, aes(x = clasificacion, y = Weight, fill=clasificacion)) + geom_boxplot() + theme(legend.position="right")
+ggplot(data = fifaNet, aes(x=Age, y=Weight, group=Age, fill=Age)) + geom_boxplot(notch=FALSE, outlier.shape=NA) 
+```
+
+De aquí podemos obtener varias conclusiones curiosas:
+<ul>
+  <li>Los porteros tienen un peso más alto que el resto de jugadores.</li>
+
+  <li>El pie con el que prefieren lanzar los jugadores no revela una gran diferencia en cuanto al peso de éstos.</li>
+
+  <li>Los jugadores que tienen una mejor calificación ("Excelente" y "Muy bueno") tienen un peso más elevado que el resto, siendo los   calificados como "Malo" los más ligeros.</li>
+
+  <li>En cuanto a la edad, vemos que según van envejeciendo los jugadores aumentan de peso.</li>
+</ul>
+
+******
+## Comprobación de normalidad
+******
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+ggplot(data = fifaNet, aes(x = Weight)) +
+  geom_histogram(aes(y = ..density.., fill = ..count..)) +
+  scale_fill_gradient(low = "#DCDCDC", high = "#7C7C7C") +
+  stat_function(fun = dnorm, colour = "firebrick", args = list(mean = mean(fifaNet$Weight), sd = sd(fifaNet$Weight))) +
+  ggtitle("Histograma con curva normal teórica") 
+```
+
+Claramente vemos que podemos asumir que la variable Weight tiene una distribución normal.
+
+******
+# Estadística inferencial
+******
+
+******
+## Intervalo de confianza de la media poblacional de la variable Weight
+******
+
+Procedemos al cálculo del intervalo de confianza de la variable Weight, para ello, creamos una función que nos permita hacer este cálculo con distintos vectores de datos. 
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+Int_conf <- function(vector) {
+  desv <- sd(vector)                      # Calculamos la desviación tipica de la distribución
+  t <- qt(0.05/2,length(vector))          # Para un nivel de confianza del 95%
+  error_est <- desv/sqrt(length(vector))  # Calculamos el error estándar
+  margen_error <- t * error_est           # Margen de error
+  lim_inf <- mean(vector) + margen_error
+  lim_sup <- mean(vector) - margen_error
+  interval <- c(lim_inf,lim_sup)
+  return(interval) 
+}
+Int_conf(fifaNet$Weight)
+#Intervalo de confianza de la variable Weight para los porteros.
+Int_conf(fifaNet$Weight[fifaNet$portero == "Portero"])
+#Intervalo de confianza de la variable Weight para los jugadores de campo.
+Int_conf(fifaNet$Weight[fifaNet$portero == "noPortero"])
+```
+
+******
+## Contraste de hipótesis para la diferencia de medias
+******
+
+Intentamos dar respuesta a la siguiente cuestión:
+¿Podemos aceptar que la altura de los porteros supera en más de 5 centímetros la altura de los jugadores de campo?
+
+Para ello, aplicaremos el test de contrastes de dos muestras independientes sobre la media con varianzas desconocidas:
+
+
+$$
+\left\{
+\begin{array}{ll}
+H_{0}: &  \mu_1=\mu_2\\
+H_{1}: & \mu_1 >\mu_2 +5
+\end{array}
+\right.
+$$
+Donde $\mu_1$ es la media de altura de los porteros y $\mu_2$ la media de altura de los jugadores de campo
+
+Por tanto, aplicamos un test de hipótesis de dos muestras sobre la media. Aplicaremos la distribución t, dado
+que no se conoce la varianza de la población.
+Es necesario comprobar si podemos suponer varianzas iguales. Para ello, aplicamos el test var.test de R:
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+GK <- fifaNet$Height[fifaNet$portero == "Portero"]
+noGK <- fifaNet$Height[!fifaNet$portero == "noPortero"]
+
+var.test(GK, noGK)
+```
+
+El resultado del test es un valor p<0.001. Por tanto, descartamos igualdad de varianzas en las dos poblaciones.
+En consecuencia, aplicamos un test de dos muestras independientes sobre la media con varianza desconocida
+y diferente. Es un test unilateral por la derecha.
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+
+mean1 <- mean(GK)
+mean2 <- mean(noGK)
+n1 <- length(GK)
+n2 <- length(noGK)
+sd1 <- sd(GK)
+sd2 <- sd(noGK)
+
+Sb <- sqrt( sd1^2/n1 + sd2^2/n2 )
+denom <- ( (sd1^2/n1)^2/(n1-1) + (sd2^2/n2)^2/(n2-1))
+df <- ( (sd1^2/n1 + sd2^2/n2)^2 ) / denom
+
+alfa <- (1-0.95)
+t<- (mean1-mean2) / Sb
+tcritical <- qt( alfa, df, lower.tail=FALSE )
+pvalue<-pt( t, df, lower.tail=FALSE )
+c(t,tcritical,pvalue,df)
+t.test( GK, noGK, var.equal=FALSE, alternative = "greater")
+```
+
+El valor crítico para un nivel de confianza del 95% es 1.646936 y el valor observado es 40.26594.
+Se concluye lo mismo con el valor p, que da un valor de 3.427049 × 10−188, muy inferior a alfa=0.05.
+
+Por tanto, nos encontramos en la zona de rechazo de la hipótesis nula a favor de la hipóteis alternativa, aceptando
+que los porteros miden 5cm más que los jugadores de campos. 
+
+Podemos ver esto de una forma visual a continuación:
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+ggplot(data = fifaNet, aes(x = portero, y = Height, fill=portero)) + geom_boxplot() + theme(legend.position="right")
+```
+
+******
+# Modelo de regresión lineal
+******
+
+Generaremos a continuación un modelo de regresión lineal múltiple con las variables explicativas: Age, portero, Weight, Preffered_Foot, Vision y Ball_Control y como variable dependiente el Rating de los jugadores. Estableciendo como referencia para las variables cualitativas portero y Preffered_Foot "Portero" y "Left" respectivamente.
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+fifaNet$portero <- relevel(fifaNet$portero, ref="Portero")
+fifaNet$Preffered_Foot <- relevel(fifaNet$Preffered_Foot, ref="Left")
+regresionMult <- lm(Rating ~ Age + portero + Weight + Preffered_Foot + Vision + Ball_Control, data=fifaNet)
+
+```
+
+******
+## Interpretación del modelo
+******
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+summary(regresionMult)
+```
+
+Para interpretar el modelo generado, nos fijaremos en el valor $R^2$, que nos informa de la calidad del ajuste. En este caso, vemos que tenemos un 50.96%. Si nos fijamos en la significancia de cada una de las variables, vemos que salvo la variable que establece el pie de preferencia del jugador, el resto tienen una significancia parecida, sin embargo, vemos que esta variable tiene una significancia especialmente superior con un p-value=0.596.
+
+******
+## Predicción
+******
+
+Aplicaremos ahora el modelo de regresión creado para predecir el rating de un jugador de campo con pie izquierdo preferido, con un peso de 70, edad de 24, control del balón de 80 y visión de 60.
+
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
+nuevoJugador <- data.frame(portero = "noPortero", Preffered_Foot = "Left", Weight = 70 , Age = 24, Ball_Control = 80, Vision = 60)
+predict(regresionMult, nuevoJugador)
+```
+
+Estimamos así que el rating para este jugador será de 69.10481.
+
