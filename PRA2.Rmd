@@ -258,90 +258,90 @@ predict(regresionMult, nuevoJugador)
 
 Estimamos así que el rating para este jugador será de 69.10481.
 
-**
+******
 # Regresión logística
-**
+******
 
 Se desea obtener un modelo predictivo basado en la regresión logística para predecir la probabilidad de jugar en la selección nacional en función de las variables: portero, Rating, Age y Work_Rate.
 
 Para ello, crearemos una variable internacional que indique si el jugador es internacional tomando el valor 0 cuando el jugador no tiene dorsal en la selección y 1 cuando si lo tenga.
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 fifaNet$internacional <- as.factor( ifelse( fifaNet$National_Position != '',1,0))
 head(fifaNet$internacional,10)
 modelo_logistico <- glm(internacional ~ portero + Rating + Age + Work_Rate, data = fifaNet, family = "binomial")
 summary(modelo_logistico)
-
+```
 
 Vemos cómo la variable Work_rate, tiene diferentes pesos en el modelo, dependiendo del valor de la variable. Por otro lado, la variable portero tiene más significancia en comparación con el resto de variables.
 
-**
+******
 ## Matriz de confusión
-**
+******
 
 A continuación analizad la precisión del modelo, comparando la predicción del modelo sobre los mismos datos del conjunto de datos. Asumiremos que la predicción del modelo es 1 (internacional) si la probabilidad del modelo de regresión logística es superior o igual a 0.5 y 0 en caso contrario. Analizad la matriz de confusión y las medidas de ‘sensitivity’ y ‘specificity’.
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 
 fifaNet$predicted <- predict(modelo_logistico, fifaNet, type = 'response')
 fifaNet$predicted <- as.factor(ifelse(fifaNet$predicted > 0.5, 1, 0))
 
 confusionMatrix(fifaNet$predicted, fifaNet$internacional, positive = "1")
+```
 
-
-**
+******
 ## Interpretación
-**
+******
 
 Como vemos, la matriz nos muestra que el modelo es muy bueno reconociendo los casos negativos, pero que por el contrario, a muchos jugadores nacionales no los clasifica como tal. La precisión media es de un 54.4% por este motivo.
 
-**
+******
 ## Interpretación de la variable Work_Rate
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 fifaNet$Work_Rate <- relevel(fifaNet$Work_Rate, ref='Medium / Medium')
 modelo_logistico2 <- glm(internacional ~ portero + Rating + Age + Work_Rate, data = fifaNet, family = "binomial")
 summary(modelo_logistico2)
-
+```
 Como vemos, en comparación con el modelo logístico anterior, al establecer como referencia el valor "Medium / Medium", aumenta la significancia de la variable Work_Rate en todos sus valores.
 
-**
+******
 ## Importancia de ser portero
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 oddsRatio <-exp(cbind(OR = coef(modelo_logistico2), confint(modelo_logistico2)))
 oddsRatio
+```
 
-
-**
+******
 ## Predicción
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 nuevoJugador <- data.frame(portero = "Portero", Age = 25, Rating = 95, Work_Rate="High / High")
 predict(modelo_logistico2, nuevoJugador, type='response')
-
+```
 
 Así obtenemos una predicción de que un portero de 25 años, con un rating de 95 puntos y una clasificación de Work_Rate como High/High irá a la selección con una probabilidad del 96.20%.
 
-**
+******
 # Análisis de la varianza (ANOVA) de un factor
-**
+******
 
-**
+******
 ## Visualización gráfica
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 summary(fifaNet$Age)
 fifaNet$AgeInt <- cut(fifaNet$Age, breaks = c(16,20,27,47), labels = c("Junior", "Middle","Senior"))
+```
 
-
-**
+******
 ## Hipótesis nula y alternativa
-**
+******
 
 $$
 \left\{
@@ -352,45 +352,45 @@ H_{1}: & \alpha_i ≠ \alpha_j  &para &algún &i ≠ j
 \right.
 $$
 
-**
+******
 ## Modelo
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 modelo_logistico3 <- lm(fifaNet$Rating ~ fifaNet$AgeInt)
 anova = aov(modelo_logistico3)
 summary(anova)
-
+```
 
 Claramente se aprecia que podemos descartar la hipótesis nula a favor de la hipótesis alternativa.
-**
+******
 ## Efectos de los niveles del factor
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 oddsRatio <-exp(cbind(OR = coef(modelo_logistico3), confint(modelo_logistico3)))
 oddsRatio
+```
 
-
-**
+******
 ## Adecuación del modelo
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 plot(anova)
+```
 
-
-**
+******
 # ANOVA Multifactorial
-**
+******
 
-**
+******
 ## Análisis visual de los efectos principales y posibles interacciones
-**
+******
 
 En primer lugar, haremos una visualización simple por separado de las variables en estudio.
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 plot(x = fifaNet$AgeInt, y = fifaNet$Rating, main = "Rating por agrupación de edad",
      xlab = "Edad", ylab = "Rating",
      col = c("orange3", "yellow3", "green3"))
@@ -398,11 +398,11 @@ plot(x = fifaNet$AgeInt, y = fifaNet$Rating, main = "Rating por agrupación de e
 plot(x = fifaNet$portero, y = fifaNet$Rating, main = "Rating por tipo de jugador",
      xlab = "Tipo de jugador", ylab = "Rating",
      col = c("orange3", "yellow3"))
-
+```
 
 A continuación, agrupamos por AgeInt y portero para calcular las medias en los distintos casos y representamos para su estudio.
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 
 meanRating <- fifaNet %>% group_by(AgeInt,portero) %>% summarise(mean = mean(Rating))
 meanRating
@@ -411,34 +411,44 @@ ggplot(data=meanRating, aes(x=AgeInt, y=mean, group=portero)) +
   geom_line(aes(color=portero))+
   geom_point(aes(color=portero))
 
+```
 
-
-**
+******
 ## Cálculo del modelo
-**
+******
 
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+```{r,eval=TRUE,echo=TRUE,message=FALSE}
 anova2 = aov(lm(fifaNet$Rating ~ fifaNet$AgeInt + fifaNet$portero))
 summary(anova2)
+```
 
-
-**
+******
 ## Interpretación de los resultados
-**
+******
 
 De este estudio podemos concluir que los porteros, tengan la edad que tengan, tendrán una mejor valoración que los no porteros. Teniendo esta variable más peso a la hora de asignar una valoración en comparación con la edad del jugador en el modelo de regresión logística creado.
 
 
-**
+******
 ## Adecuación del modelo
-**
-{r,eval=TRUE,echo=TRUE,message=FALSE}
+******
+```{r echo=TRUE, message=FALSE, r,eval=TRUE}
 plot(anova2)
+```
+
+******
+# Exportamos a CSV el dataset una vez analizado y modificado 
+******
+```{r echo=TRUE}
+write.csv(fifaNet,"post_analisis.csv", row.names = TRUE)
+```
 
 
-**
+
+
+******
 # Conclusiones
-**
+******
 
 A lo largo de este estudio, hemos recogido varias conclusiones que resumimos a continuación:
 
