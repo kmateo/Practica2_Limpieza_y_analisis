@@ -279,7 +279,7 @@ Vemos cómo la variable Work_rate, tiene diferentes pesos en el modelo, dependie
 ## Matriz de confusión
 ******
 
-A continuación analizad la precisión del modelo, comparando la predicción del modelo sobre los mismos datos del conjunto de datos. Asumiremos que la predicción del modelo es 1 (internacional) si la probabilidad del modelo de regresión logística es superior o igual a 0.5 y 0 en caso contrario. Analizad la matriz de confusión y las medidas de ‘sensitivity’ y ‘specificity’.
+Analizamos la precisión del modelo, comparando la predicción del modelo sobre los mismos datos del conjunto de datos. Asumiremos que la predicción del modelo es 1 (internacional) si la probabilidad del modelo de regresión logística es superior o igual a 0.5 y 0 en caso contrario.
 
 ```{r,eval=TRUE,echo=TRUE,message=FALSE}
 
@@ -305,15 +305,6 @@ modelo_logistico2 <- glm(internacional ~ portero + Rating + Age + Work_Rate, dat
 summary(modelo_logistico2)
 ```
 Como vemos, en comparación con el modelo logístico anterior, al establecer como referencia el valor "Medium / Medium", aumenta la significancia de la variable Work_Rate en todos sus valores.
-
-******
-## Importancia de ser portero
-******
-
-```{r,eval=TRUE,echo=TRUE,message=FALSE}
-oddsRatio <-exp(cbind(OR = coef(modelo_logistico2), confint(modelo_logistico2)))
-oddsRatio
-```
 
 ******
 ## Predicción
@@ -363,14 +354,7 @@ summary(anova)
 ```
 
 Claramente se aprecia que podemos descartar la hipótesis nula a favor de la hipótesis alternativa.
-******
-## Efectos de los niveles del factor
-******
-
-```{r,eval=TRUE,echo=TRUE,message=FALSE}
-oddsRatio <-exp(cbind(OR = coef(modelo_logistico3), confint(modelo_logistico3)))
-oddsRatio
-```
+Descartamos la hipótesis nula que afirmaba que todas las medias de la población (medias de los niveles delos factores) son iguales a favor de la hipótesis alternativa, que establece que al menos una de estas medias de la población es diferente.
 
 ******
 ## Adecuación del modelo
